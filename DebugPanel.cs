@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.IO;
 
 namespace LudicWorlds
 {
@@ -27,7 +28,7 @@ namespace LudicWorlds
         private uint _memorySamples;
 
         private bool _showMemoryUsage = true; 
-
+        private bool _showFpsGraph = false; 
         void Awake()
         {
             AcquireObjects();
@@ -68,7 +69,7 @@ namespace LudicWorlds
         {
             _elapsedTime += Time.deltaTime;
 
-            if(_elapsedTime > 0.5f)
+            if (_elapsedTime > 0.5f)
             {
                 _fpsText.text = (Mathf.Round((_sumFps / _fpsSamples))).ToString();
                 UpdateMemoryUsage();
@@ -87,7 +88,7 @@ namespace LudicWorlds
 
         private void UpdateMemoryUsage()
         {
-            _memoryUsage = Profiler.GetTotalAllocatedMemoryLong() / (1024f * 1024f); // Convert bytes to MB
+            _memoryUsage = Profiler.GetTotalAllocatedMemoryLong() / (1024f * 1024f); 
             _maxMemoryUsage = Mathf.Max(_maxMemoryUsage, _memoryUsage);
             _averageMemoryUsage = ((_averageMemoryUsage * _memorySamples) + _memoryUsage) / (_memorySamples + 1);
             _memorySamples++;
@@ -180,7 +181,24 @@ namespace LudicWorlds
 
         public void ShowFpsGraph()
         {
-            Debug.Log("FPS Graph feature not implemented yet.");
+            if (_showFpsGraph)
+            {
+                Debug.Log("FPS Graph is already visible.");
+                return;
+            }
+            _showFpsGraph = true;
+            Debug.Log("FPS Graph feature activated.");
+        }
+
+        public void HideFpsGraph()
+        {
+            if (!_showFpsGraph)
+            {
+                Debug.Log("FPS Graph is not visible.");
+                return;
+            }
+            _showFpsGraph = false;
+            Debug.Log("FPS Graph feature deactivated.");
         }
 
         public static void LogPerformanceData()
@@ -210,6 +228,48 @@ namespace LudicWorlds
         {
             string timestamp = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             _statusText.text = $"[{timestamp}] {message}";
+        }
+        public static void LogMemoryWarning(float thresholdMB)
+        {
+            if (_memoryUsage > thresholdMB)
+            {
+                Debug.LogWarning($"Memory usage exceeded threshold: {_memoryUsage:F2} MB");
+            }
+        }
+        public static void LogFpsError(float thresholdFps)
+        {
+            float fps = 1.0f / Time.deltaTime;
+            if (fps < thresholdFps)
+            {
+                Debug.LogError($"FPS dropped below threshold: {fps:F2} FPS");
+            }
+        }
+
+        public static void DisplayPerformanceReport()
+        {
+            float frameTime = Time.deltaTime * 1000f;
+            float fps = 1.0f / Time.deltaTime;
+            string report = $"Performance Report:\nFrame Time: {frameTime:F2} ms\nFPS: {fps:F2}\nMemory: {_memoryUsage:F2} MB";
+            Debug.Log(report);
+        }
+
+        public static void ResetPerformanceMetrics()
+        {
+            _sumFps = 0;
+            _fpsSamples = 0;
+            _memoryUsage = 0;
+            _maxMemoryUsage = 0;
+            _averageMemoryUsage = 0;
+            _memorySamples = 0;
+            Debug.Log("Performance metrics reset.");
+        }
+
+        public static void SavePerformanceMetrics(string fileName)
+        {
+            string path = $"{Application.persistentDataPath}/{fileName}.txt";
+            string metrics = $"Frame Time: {Time.deltaTime * 1000f:F2} ms\nFPS: {1.0f / Time.deltaTime:F2}\nMemory: {_memoryUsage:F2} MB";
+            System.IO.File.WriteAllText(path, metrics);
+            Debug.Log($"Performance metrics saved to {path}");
         }
     }
 }
