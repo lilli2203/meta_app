@@ -20,6 +20,12 @@ public class LineScript : MonoBehaviour
     private float textureScale = 1.0f;
     private List<Vector3> drawingPoints = new List<Vector3>();
     private LineRenderer lineRenderer;
+    private float drawingStartTime;
+    private List<Color> colorList = new List<Color> { Color.red, Color.green, Color.blue, Color.yellow, Color.magenta };
+    private int currentColorIndex = 0;
+    private bool isScaling = false;
+    private float scaleStartTime;
+    private float scaleDuration = 0.5f;
 
     void Start()
     {
@@ -32,6 +38,18 @@ public class LineScript : MonoBehaviour
 
     void Update()
     {
+        HandleDrawingMode();
+        HandleColorChange();
+        HandleTextureScaling();
+        UpdateTextMessage();
+        if (isDrawing)
+        {
+            DrawLine();
+        }
+    }
+
+    private void HandleDrawingMode()
+    {
         if (OVRInput.GetDown(OVRInput.Button.One))
         {
             ToggleDrawingMode();
@@ -43,8 +61,7 @@ public class LineScript : MonoBehaviour
             Quaternion controllerRotation = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
             Vector3 rayDirection = controllerRotation * Vector3.forward;
 
-            RaycastHit hit;
-            if (Physics.Raycast(controllerPosition, rayDirection, out hit))
+            if (Physics.Raycast(controllerPosition, rayDirection, out RaycastHit hit))
             {
                 GameObject hitPlane = hit.collider.gameObject;
 
@@ -54,15 +71,39 @@ public class LineScript : MonoBehaviour
                 }
             }
         }
+    }
 
+    private void HandleColorChange()
+    {
         if (OVRInput.GetDown(OVRInput.Button.SecondaryHandTrigger))
         {
-            ChangeColor();
+            currentColorIndex = (currentColorIndex + 1) % colorList.Count;
+            currentColor = colorList[currentColorIndex];
+            currentMaterial.color = currentColor;
+            lineRenderer.material.color = currentColor;
+        }
+    }
+
+    private void HandleTextureScaling()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger))
+        {
+            isScaling = true;
+            scaleStartTime = Time.time;
         }
 
-        if (isDrawing)
+        if (isScaling)
         {
-            DrawLine();
+            float elapsed = Time.time - scaleStartTime;
+            if (elapsed < scaleDuration)
+            {
+                float scale = Mathf.Lerp(1.0f, 1.5f, elapsed / scaleDuration);
+                currentMaterial.mainTextureScale = new Vector2(scale, scale);
+            }
+            else
+            {
+                isScaling = false;
+            }
         }
     }
 
@@ -73,19 +114,22 @@ public class LineScript : MonoBehaviour
         {
             lineRenderer.positionCount = 0;
             drawingPoints.Clear();
+            drawingStartTime = Time.time;
         }
     }
 
     private void ApplyMaterialToPlane(GameObject hitPlane)
     {
-        Material material = new Material(shader);
-        material.mainTexture = texture;
+        Material material = new Material(shader)
+        {
+            mainTexture = texture
+        };
         material.SetFloat("_Cull", (float)CullMode.Off);
 
         float scaleFactor = 0.0005f;
         float imageWidth = width * scaleFactor;
         float imageHeight = height * scaleFactor;
-        
+
         float planeWidth = hitPlane.transform.localScale.x;
         float planeHeight = hitPlane.transform.localScale.z;
 
@@ -96,13 +140,6 @@ public class LineScript : MonoBehaviour
         MeshRenderer planeRenderer = hitPlane.GetComponentInParent<MeshRenderer>();
         planeRenderer.material = material;
         currentMaterial = material;
-    }
-
-    private void ChangeColor()
-    {
-        currentColor = new Color(Random.value, Random.value, Random.value);
-        currentMaterial.color = currentColor;
-        lineRenderer.material.color = currentColor;
     }
 
     private void DrawLine()
@@ -128,6 +165,12 @@ public class LineScript : MonoBehaviour
     public void SetTextMessage(string message)
     {
         text.text = message;
+    }
+
+    private void UpdateTextMessage()
+    {
+        float elapsedDrawingTime = Time.time - drawingStartTime;
+        SetTextMessage($"Drawing Time: {elapsedDrawingTime:F2}s");
     }
 
     private void OnDisable()
