@@ -12,14 +12,11 @@ public class handCanvasFollower : MonoBehaviour
     private RectTransform scrollViewRectTransform;
     private bool isCanvasVisible = false; 
     private bool wasIndexPinching = false; 
-
     private Transform targetHandTransform;
-
     public OVRHand rightHand;
     public Vector3 rightHandPositionOffset = new Vector3(0, 0, 0.1f); 
     public Vector3 rightHandRotationOffset = new Vector3(0, 0, 0);    
     private Transform rightHandTransform;
-
     private bool followRightHand = false;
     private float doubleTapTime = 0.2f; 
     private float lastTapTime = 0;
@@ -32,6 +29,10 @@ public class handCanvasFollower : MonoBehaviour
     public AudioClip thumbsUpClip;
     public AudioClip fistClip;
     public Image backgroundPanel;
+    public GameObject interactableObject;
+    public Text interactionStatusText;
+    private bool isGrabbingObject = false;
+    private Transform originalParent;
 
     void Start()
     {
@@ -58,32 +59,11 @@ public class handCanvasFollower : MonoBehaviour
 
         if (targetHandTransform != null)
         {
-            if (followRightHand)
-            {
-                transform.position = rightHandTransform.position + rightHandTransform.TransformDirection(rightHandPositionOffset);
-                transform.rotation = rightHandTransform.rotation * Quaternion.Euler(rightHandRotationOffset);
-            }
-            else
-            {
-                transform.position = targetHandTransform.position + targetHandTransform.TransformDirection(positionOffset);
-                transform.rotation = targetHandTransform.rotation * Quaternion.Euler(rotationOffset);
-            }
-
-            if (canvas != null && scrollViewRectTransform != null)
-            {
-                Canvas.ForceUpdateCanvases();
-                LayoutRebuilder.ForceRebuildLayoutImmediate(scrollViewRectTransform);
-            }
-            bool isIndexPinching = leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index);
-            if (isIndexPinching && !wasIndexPinching)
-            {
-                isCanvasVisible = !isCanvasVisible;
-                canvas.enabled = isCanvasVisible;
-            }
-            wasIndexPinching = isIndexPinching;
+            FollowHand();
+            HandleCanvasVisibility();
+            DetectGestures();
+            HandleObjectInteraction();
         }
-
-        DetectGestures();
     }
 
     private void HandleHandFollowToggle()
@@ -122,6 +102,33 @@ public class handCanvasFollower : MonoBehaviour
         }
     }
 
+    private void FollowHand()
+    {
+        Transform activeHandTransform = followRightHand ? rightHandTransform : targetHandTransform;
+        Vector3 activePositionOffset = followRightHand ? rightHandPositionOffset : positionOffset;
+        Vector3 activeRotationOffset = followRightHand ? rightHandRotationOffset : rotationOffset;
+
+        transform.position = activeHandTransform.position + activeHandTransform.TransformDirection(activePositionOffset);
+        transform.rotation = activeHandTransform.rotation * Quaternion.Euler(activeRotationOffset);
+
+        if (canvas != null && scrollViewRectTransform != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(scrollViewRectTransform);
+        }
+    }
+
+    private void HandleCanvasVisibility()
+    {
+        bool isIndexPinching = leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index);
+        if (isIndexPinching && !wasIndexPinching)
+        {
+            isCanvasVisible = !isCanvasVisible;
+            canvas.enabled = isCanvasVisible;
+        }
+        wasIndexPinching = isIndexPinching;
+    }
+
     private void DetectGestures()
     {
         isThumbsUp = leftHand.GetFingerIsPinching(OVRHand.HandFinger.Thumb) && !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index) &&
@@ -142,6 +149,47 @@ public class handCanvasFollower : MonoBehaviour
         {
             PlayAudioClip(fistClip);
             ChangeBackgroundColor(Color.red);
+        }
+    }
+
+    private void HandleObjectInteraction()
+    {
+        if (isFist && !isGrabbingObject)
+        {
+            GrabObject();
+        }
+        else if (!isFist && isGrabbingObject)
+        {
+            ReleaseObject();
+        }
+    }
+
+    private void GrabObject()
+    {
+        if (interactableObject != null)
+        {
+            originalParent = interactableObject.transform.parent;
+            interactableObject.transform.SetParent(targetHandTransform);
+            isGrabbingObject = true;
+            UpdateInteractionStatusText("Object Grabbed");
+        }
+    }
+
+    private void ReleaseObject()
+    {
+        if (interactableObject != null)
+        {
+            interactableObject.transform.SetParent(originalParent);
+            isGrabbingObject = false;
+            UpdateInteractionStatusText("Object Released");
+        }
+    }
+
+    private void UpdateInteractionStatusText(string status)
+    {
+        if (interactionStatusText != null)
+        {
+            interactionStatusText.text = status;
         }
     }
 
