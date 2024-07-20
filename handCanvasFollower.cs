@@ -15,7 +15,6 @@ public class handCanvasFollower : MonoBehaviour
 
     private Transform targetHandTransform;
 
-    // New Variables
     public OVRHand rightHand;
     public Vector3 rightHandPositionOffset = new Vector3(0, 0, 0.1f); 
     public Vector3 rightHandRotationOffset = new Vector3(0, 0, 0);    
@@ -27,6 +26,12 @@ public class handCanvasFollower : MonoBehaviour
     private int tapCount = 0;
     public Button toggleHandButton;
     public Text handFollowStatusText;
+    private bool isThumbsUp = false;
+    private bool isFist = false;
+    public AudioSource audioSource;
+    public AudioClip thumbsUpClip;
+    public AudioClip fistClip;
+    public Image backgroundPanel;
 
     void Start()
     {
@@ -77,6 +82,8 @@ public class handCanvasFollower : MonoBehaviour
             }
             wasIndexPinching = isIndexPinching;
         }
+
+        DetectGestures();
     }
 
     private void HandleHandFollowToggle()
@@ -112,6 +119,45 @@ public class handCanvasFollower : MonoBehaviour
         if (handFollowStatusText != null)
         {
             handFollowStatusText.text = followRightHand ? "Following Right Hand" : "Following Left Hand";
+        }
+    }
+
+    private void DetectGestures()
+    {
+        isThumbsUp = leftHand.GetFingerIsPinching(OVRHand.HandFinger.Thumb) && !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index) &&
+                     !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Middle) && !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Ring) &&
+                     !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Pinky);
+
+        isFist = leftHand.GetFingerIsPinching(OVRHand.HandFinger.Thumb) && leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index) &&
+                 leftHand.GetFingerIsPinching(OVRHand.HandFinger.Middle) && leftHand.GetFingerIsPinching(OVRHand.HandFinger.Ring) &&
+                 leftHand.GetFingerIsPinching(OVRHand.HandFinger.Pinky);
+
+        if (isThumbsUp)
+        {
+            PlayAudioClip(thumbsUpClip);
+            ChangeBackgroundColor(Color.green);
+        }
+
+        if (isFist)
+        {
+            PlayAudioClip(fistClip);
+            ChangeBackgroundColor(Color.red);
+        }
+    }
+
+    private void PlayAudioClip(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+        {
+            audioSource.PlayOneShot(clip);
+        }
+    }
+
+    private void ChangeBackgroundColor(Color color)
+    {
+        if (backgroundPanel != null)
+        {
+            backgroundPanel.color = color;
         }
     }
 }
