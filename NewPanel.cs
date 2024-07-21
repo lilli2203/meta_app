@@ -1,7 +1,3 @@
-
-//Size increase 
-
-
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -16,7 +12,7 @@ public class NewPanel : MonoBehaviour
 
     public GameObject content;
     public GameObject panel;
-    public GameObject selectedPanelDisplay; // The GameObject to display the currently selected wall panel
+    public GameObject selectedPanelDisplay; 
 
     private Texture2D currentTexture;
     [SerializeField] private Shader shader;
@@ -29,38 +25,31 @@ public class NewPanel : MonoBehaviour
 
     private Vector3 originalScale;
 
-    // Start is called before the first frame update
     void Start()
     {
         textures = Resources.LoadAll<Texture2D>("panels");
         borderPanels = new GameObject[textures.Length];
 
-        // Iterate through the textures array and create panels
         for (int i = 0; i < textures.Length; i++)
         {
-            // Create a new panel
             GameObject newPanel = Instantiate(panel, content.transform);
             Image childImage = newPanel.GetComponent<Image>();
             childImage.sprite = Sprite.Create(textures[i], new Rect(0, 0, textures[i].width, textures[i].height), Vector2.one * 0.5f);
 
-            // Assign the click function
             SelfButton button = newPanel.GetComponent<SelfButton>();
             int temp = i;
             button.onClick.AddListener(() => OnPanelClick(temp));
 
-            // Ensure the border panel reference is set correctly
             borderPanels[i] = newPanel;
 
-            // Adjust the panel's position to prevent overlap (if needed)
-            newPanel.transform.localPosition = new Vector3(0, -i * (textures[i].height + 10), 0); // Adjust spacing as needed
+            newPanel.transform.localPosition = new Vector3(0, -i * (textures[i].height + 10), 0); 
         }
 
         currentTexture = textures[0];
-        originalScale = borderPanels[0].transform.localScale; // Assuming all panels have the same original scale
+        originalScale = borderPanels[0].transform.localScale;
         UpdateSelectedPanelDisplay();
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger) || 
@@ -89,7 +78,7 @@ public class NewPanel : MonoBehaviour
             }
             else
             {
-                return; // No valid input detected
+                return;
             }
 
             Vector3 rayDirection = controllerRotation * Vector3.forward;
@@ -109,20 +98,16 @@ public class NewPanel : MonoBehaviour
                     material.SetFloat("_EnvironmentDepthBias", 0.06f);
 
                     float scaleFactor = 0.0001f;
-                    // Constrain the dimensions
                     float imageWidth = width * scaleFactor;
                     float imageHeight = height * scaleFactor;
 
-                    // Obtain the plane's dimensions
                     float planeWidth = hitPlane.transform.localScale.x;
                     float planeHeight = hitPlane.transform.localScale.z;
 
-                    // Set the tiling values
                     float tileX = planeWidth / imageWidth;
                     float tileY = planeHeight / imageHeight;
                     material.mainTextureScale = new Vector2(tileX, tileY);
 
-                    // Apply the material to the plane
                     MeshRenderer planeRenderer = hitPlane.GetComponentInParent<MeshRenderer>();
                     planeRenderer.material = material;
                 }
@@ -139,21 +124,17 @@ public class NewPanel : MonoBehaviour
         Debug.Log(t);
         currentTexture = textures[t];
 
-        // Update the selected panel display
         UpdateSelectedPanelDisplay();
 
-        // Resize the selected panel and reset others
         for (int i = 0; i < textures.Length; i++)
         {
             if (i == t)
             {
-                // Enlarge the selected panel by scaling both width and height
                 borderPanels[i].transform.localScale = new Vector3(originalScale.x * 1.2f, originalScale.y * 1.2f, originalScale.z);
             }
-
             else
             {
-                borderPanels[i].transform.localScale = originalScale; // Reset to original size
+                borderPanels[i].transform.localScale = originalScale; 
             }
         }
     }
@@ -162,5 +143,95 @@ public class NewPanel : MonoBehaviour
     {
         Image displayImage = selectedPanelDisplay.GetComponent<Image>();
         displayImage.sprite = Sprite.Create(currentTexture, new Rect(0, 0, currentTexture.width, currentTexture.height), Vector2.one * 0.5f);
+    }
+
+    // New functionality
+
+    private bool isZooming = false;
+    private Vector3 initialScale;
+    private Vector3 zoomTargetScale = new Vector3(2.0f, 2.0f, 2.0f);
+    private float zoomSpeed = 2.0f;
+    private Vector3 zoomStartScale;
+
+    void ZoomSelectedPanel()
+    {
+        if (isZooming)
+        {
+            float step = zoomSpeed * Time.deltaTime;
+            selectedPanelDisplay.transform.localScale = Vector3.Lerp(selectedPanelDisplay.transform.localScale, zoomTargetScale, step);
+        }
+    }
+
+    void StartZoom()
+    {
+        isZooming = true;
+        initialScale = selectedPanelDisplay.transform.localScale;
+        zoomStartScale = initialScale;
+    }
+
+    void StopZoom()
+    {
+        isZooming = false;
+    }
+
+    void HandleZoomInput()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.One))
+        {
+            StartZoom();
+        }
+
+        if (OVRInput.GetUp(OVRInput.Button.One))
+        {
+            StopZoom();
+        }
+    }
+
+    void ResetZoom()
+    {
+        selectedPanelDisplay.transform.localScale = initialScale;
+    }
+
+    private bool isRotating = false;
+    private float rotationSpeed = 50.0f;
+
+    void RotateSelectedPanel()
+    {
+        if (isRotating)
+        {
+            float rotationStep = rotationSpeed * Time.deltaTime;
+            selectedPanelDisplay.transform.Rotate(Vector3.up, rotationStep);
+        }
+    }
+
+    void StartRotation()
+    {
+        isRotating = true;
+    }
+
+    void StopRotation()
+    {
+        isRotating = false;
+    }
+
+    void HandleRotationInput()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.Two))
+        {
+            StartRotation();
+        }
+
+        if (OVRInput.GetUp(OVRInput.Button.Two))
+        {
+            StopRotation();
+        }
+    }
+
+    void Update()
+    {
+        HandleZoomInput();
+        HandleRotationInput();
+        ZoomSelectedPanel();
+        RotateSelectedPanel();
     }
 }
