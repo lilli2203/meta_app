@@ -11,8 +11,8 @@ public class LineScript : MonoBehaviour
     [SerializeField] private TMP_Text text;
     [SerializeField] private Texture2D texture;
     [SerializeField] private Shader shader;
-    int width = 1200;
-    int height = 13874;
+    private int width = 1200;
+    private int height = 13874;
 
     private bool isDrawing = false;
     private Material currentMaterial;
@@ -26,8 +26,29 @@ public class LineScript : MonoBehaviour
     private bool isScaling = false;
     private float scaleStartTime;
     private float scaleDuration = 0.5f;
+    private bool isErasing = false;
 
     void Start()
+    {
+        InitializeLineRenderer();
+        InitializeMaterial();
+    }
+
+    void Update()
+    {
+        HandleDrawingMode();
+        HandleColorChange();
+        HandleTextureScaling();
+        HandleErasingMode();
+        UpdateTextMessage();
+
+        if (isDrawing)
+        {
+            DrawLine();
+        }
+    }
+
+    private void InitializeLineRenderer()
     {
         lineRenderer = gameObject.AddComponent<LineRenderer>();
         lineRenderer.positionCount = 0;
@@ -36,16 +57,14 @@ public class LineScript : MonoBehaviour
         lineRenderer.material = new Material(shader);
     }
 
-    void Update()
+    private void InitializeMaterial()
     {
-        HandleDrawingMode();
-        HandleColorChange();
-        HandleTextureScaling();
-        UpdateTextMessage();
-        if (isDrawing)
+        currentMaterial = new Material(shader)
         {
-            DrawLine();
-        }
+            mainTexture = texture,
+            color = currentColor
+        };
+        currentMaterial.SetFloat("_Cull", (float)CullMode.Off);
     }
 
     private void HandleDrawingMode()
@@ -65,7 +84,7 @@ public class LineScript : MonoBehaviour
             {
                 GameObject hitPlane = hit.collider.gameObject;
 
-                if (hitPlane.transform.parent.name == "WALL_FACE")
+                if (hitPlane.transform.parent != null && hitPlane.transform.parent.name == "WALL_FACE")
                 {
                     ApplyMaterialToPlane(hitPlane);
                 }
@@ -107,6 +126,31 @@ public class LineScript : MonoBehaviour
         }
     }
 
+    private void HandleErasingMode()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.Two))
+        {
+            ToggleErasingMode();
+        }
+
+        if (isErasing && OVRInput.Get(OVRInput.Button.PrimaryHandTrigger))
+        {
+            Vector3 controllerPosition = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
+            Quaternion controllerRotation = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
+            Vector3 rayDirection = controllerRotation * Vector3.forward;
+
+            if (Physics.Raycast(controllerPosition, rayDirection, out RaycastHit hit))
+            {
+                GameObject hitObject = hit.collider.gameObject;
+
+                if (hitObject.CompareTag("Drawable"))
+                {
+                    EraseDrawing(hitObject);
+                }
+            }
+        }
+    }
+
     private void ToggleDrawingMode()
     {
         isDrawing = !isDrawing;
@@ -118,11 +162,25 @@ public class LineScript : MonoBehaviour
         }
     }
 
+    private void ToggleErasingMode()
+    {
+        isErasing = !isErasing;
+        if (isErasing)
+        {
+            SetTextMessage("Erasing Mode Activated");
+        }
+        else
+        {
+            SetTextMessage("Erasing Mode Deactivated");
+        }
+    }
+
     private void ApplyMaterialToPlane(GameObject hitPlane)
     {
         Material material = new Material(shader)
         {
-            mainTexture = texture
+            mainTexture = texture,
+            color = currentColor
         };
         material.SetFloat("_Cull", (float)CullMode.Off);
 
@@ -148,6 +206,15 @@ public class LineScript : MonoBehaviour
         drawingPoints.Add(controllerPosition);
         lineRenderer.positionCount = drawingPoints.Count;
         lineRenderer.SetPositions(drawingPoints.ToArray());
+    }
+
+    private void EraseDrawing(GameObject hitObject)
+    {
+        LineRenderer hitLineRenderer = hitObject.GetComponent<LineRenderer>();
+        if (hitLineRenderer != null)
+        {
+            hitLineRenderer.positionCount = 0;
+        }
     }
 
     public void IncreaseTextureScale()
