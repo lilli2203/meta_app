@@ -6,19 +6,19 @@ using UnityEngine.UI;
 public class handCanvasFollower : MonoBehaviour
 {
     public OVRHand leftHand;
-    public Vector3 positionOffset = new Vector3(0, 0, 0.1f); 
-    public Vector3 rotationOffset = new Vector3(0, 0, 0);   
+    public Vector3 positionOffset = new Vector3(0, 0, 0.1f);
+    public Vector3 rotationOffset = new Vector3(0, 0, 0);
     private Canvas canvas;
     private RectTransform scrollViewRectTransform;
-    private bool isCanvasVisible = false; 
-    private bool wasIndexPinching = false; 
+    private bool isCanvasVisible = false;
+    private bool wasIndexPinching = false;
     private Transform targetHandTransform;
     public OVRHand rightHand;
-    public Vector3 rightHandPositionOffset = new Vector3(0, 0, 0.1f); 
-    public Vector3 rightHandRotationOffset = new Vector3(0, 0, 0);    
+    public Vector3 rightHandPositionOffset = new Vector3(0, 0, 0.1f);
+    public Vector3 rightHandRotationOffset = new Vector3(0, 0, 0);
     private Transform rightHandTransform;
     private bool followRightHand = false;
-    private float doubleTapTime = 0.2f; 
+    private float doubleTapTime = 0.2f;
     private float lastTapTime = 0;
     private int tapCount = 0;
     public Button toggleHandButton;
@@ -33,6 +33,15 @@ public class handCanvasFollower : MonoBehaviour
     public Text interactionStatusText;
     private bool isGrabbingObject = false;
     private Transform originalParent;
+    private bool isIndexGrabbing = false;
+    private Vector3 lastHandPosition;
+
+    public GameObject settingsMenu;
+    public Button showSettingsButton;
+    public Slider positionOffsetSlider;
+    public Slider rotationOffsetSlider;
+    public Slider doubleTapTimeSlider;
+    public Button closeSettingsButton;
 
     void Start()
     {
@@ -50,6 +59,27 @@ public class handCanvasFollower : MonoBehaviour
         {
             toggleHandButton.onClick.AddListener(ToggleHandFollow);
         }
+        if (showSettingsButton != null)
+        {
+            showSettingsButton.onClick.AddListener(ToggleSettingsMenu);
+        }
+        if (closeSettingsButton != null)
+        {
+            closeSettingsButton.onClick.AddListener(ToggleSettingsMenu);
+        }
+        if (positionOffsetSlider != null)
+        {
+            positionOffsetSlider.onValueChanged.AddListener(UpdatePositionOffset);
+        }
+        if (rotationOffsetSlider != null)
+        {
+            rotationOffsetSlider.onValueChanged.AddListener(UpdateRotationOffset);
+        }
+        if (doubleTapTimeSlider != null)
+        {
+            doubleTapTimeSlider.onValueChanged.AddListener(UpdateDoubleTapTime);
+        }
+
         UpdateHandFollowStatusText();
     }
 
@@ -206,6 +236,51 @@ public class handCanvasFollower : MonoBehaviour
         if (backgroundPanel != null)
         {
             backgroundPanel.color = color;
+        }
+    }
+
+    private void ToggleSettingsMenu()
+    {
+        if (settingsMenu != null)
+        {
+            settingsMenu.SetActive(!settingsMenu.activeSelf);
+        }
+    }
+
+    private void UpdatePositionOffset(float value)
+    {
+        positionOffset = new Vector3(0, 0, value);
+    }
+
+    private void UpdateRotationOffset(float value)
+    {
+        rotationOffset = new Vector3(0, 0, value);
+    }
+
+    private void UpdateDoubleTapTime(float value)
+    {
+        doubleTapTime = value;
+    }
+
+
+        private void MoveCanvasWithHand()
+    {
+        if (isIndexPinching && !isIndexGrabbing)
+        {
+            isIndexGrabbing = true;
+            lastHandPosition = leftHand.transform.position;
+        }
+
+        if (isIndexGrabbing)
+        {
+            Vector3 handMovement = leftHand.transform.position - lastHandPosition;
+            transform.position += handMovement;
+            lastHandPosition = leftHand.transform.position;
+
+            if (!leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index))
+            {
+                isIndexGrabbing = false;
+            }
         }
     }
 }
