@@ -20,6 +20,9 @@ public class PanelsScript2 : MonoBehaviour
 
     private GameObject pointCircle;
     private bool isPanelSelected = false; 
+    private Dictionary<string, Texture2D> savedPanels = new Dictionary<string, Texture2D>();
+
+    public TMP_Text statusText; 
 
     void Start()
     {
@@ -27,6 +30,8 @@ public class PanelsScript2 : MonoBehaviour
         CreateButtons();
         SetInitialTexture();
         CreatePointCircle();
+        LoadPanelStates();
+        UpdateStatusText("Initialization complete.");
     }
 
     void Update()
@@ -63,7 +68,14 @@ public class PanelsScript2 : MonoBehaviour
 
     private void SetInitialTexture()
     {
-        currentTexture = textures[0];
+        if (textures.Length > 0)
+        {
+            currentTexture = textures[0];
+        }
+        else
+        {
+            Debug.LogError("No textures found!");
+        }
     }
 
     private void CreatePointCircle()
@@ -130,9 +142,14 @@ public class PanelsScript2 : MonoBehaviour
 
         MeshRenderer planeRenderer = hitPlane.GetComponentInParent<MeshRenderer>();
         planeRenderer.material = material;
+        string panelName = hitPlane.transform.parent.name;
+        savedPanels[panelName] = currentTexture;
+        SavePanelStates();
 
         pointCircle.SetActive(false);
         isPanelSelected = false;
+
+        UpdateStatusText("Texture applied to " + panelName);
     }
 
     private void OnPanelClick(int t)
@@ -143,5 +160,62 @@ public class PanelsScript2 : MonoBehaviour
             borderPanels[i].SetActive(i == t);
         }
         isPanelSelected = true;
+    }
+
+    private void SavePanelStates()
+    {
+        foreach (var panel in savedPanels)
+        {
+            PlayerPrefs.SetString(panel.Key, panel.Value.name);
+        }
+        PlayerPrefs.Save();
+    }
+
+    private void LoadPanelStates()
+    {
+        foreach (GameObject hitPlane in GameObject.FindGameObjectsWithTag("WALL_FACE"))
+        {
+            string panelName = hitPlane.transform.parent.name;
+            if (PlayerPrefs.HasKey(panelName))
+            {
+                string textureName = PlayerPrefs.GetString(panelName);
+                Texture2D texture = Resources.Load<Texture2D>("panels/" + textureName);
+                if (texture != null)
+                {
+                    savedPanels[panelName] = texture;
+                    ApplySavedTexture(hitPlane, texture);
+                }
+            }
+        }
+    }
+
+    private void ApplySavedTexture(GameObject hitPlane, Texture2D texture)
+    {
+        Material material = new Material(shader);
+        material.mainTexture = texture;
+        material.SetFloat("_Cull", (float)CullMode.Off);
+        material.SetFloat("_EnvironmentDepthBias", 0.06f);
+
+        float scaleFactor = 0.0001f;
+        float imageWidth = width * scaleFactor;
+        float imageHeight = height * scaleFactor;
+
+        float planeWidth = hitPlane.transform.localScale.x;
+        float planeHeight = hitPlane.transform.localScale.z;
+
+        float tileX = planeWidth / imageWidth;
+        float tileY = planeHeight / imageHeight;
+        material.mainTextureScale = new Vector2(tileX, tileY);
+
+        MeshRenderer planeRenderer = hitPlane.GetComponentInParent<MeshRenderer>();
+        planeRenderer.material = material;
+    }
+
+    private void UpdateStatusText(string message)
+    {
+        if (statusText != null)
+        {
+            statusText.text = message;
+        }
     }
 }
