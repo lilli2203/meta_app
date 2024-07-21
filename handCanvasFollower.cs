@@ -42,6 +42,10 @@ public class handCanvasFollower : MonoBehaviour
     public Slider rotationOffsetSlider;
     public Slider doubleTapTimeSlider;
     public Button closeSettingsButton;
+    public Slider canvasSizeSlider;
+    public Slider canvasRotationSlider;
+    private float canvasSize = 1f;
+    private float canvasRotation = 0f;
 
     void Start()
     {
@@ -79,6 +83,14 @@ public class handCanvasFollower : MonoBehaviour
         {
             doubleTapTimeSlider.onValueChanged.AddListener(UpdateDoubleTapTime);
         }
+        if (canvasSizeSlider != null)
+        {
+            canvasSizeSlider.onValueChanged.AddListener(UpdateCanvasSize);
+        }
+        if (canvasRotationSlider != null)
+        {
+            canvasRotationSlider.onValueChanged.AddListener(UpdateCanvasRotation);
+        }
 
         UpdateHandFollowStatusText();
     }
@@ -93,6 +105,7 @@ public class handCanvasFollower : MonoBehaviour
             HandleCanvasVisibility();
             DetectGestures();
             HandleObjectInteraction();
+            MoveCanvasWithHand();
         }
     }
 
@@ -146,6 +159,10 @@ public class handCanvasFollower : MonoBehaviour
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(scrollViewRectTransform);
         }
+
+        // Apply size and rotation
+        transform.localScale = Vector3.one * canvasSize;
+        transform.rotation = Quaternion.Euler(0, canvasRotation, 0);
     }
 
     private void HandleCanvasVisibility()
@@ -262,8 +279,17 @@ public class handCanvasFollower : MonoBehaviour
         doubleTapTime = value;
     }
 
+    private void UpdateCanvasSize(float value)
+    {
+        canvasSize = value;
+    }
 
-        private void MoveCanvasWithHand()
+    private void UpdateCanvasRotation(float value)
+    {
+        canvasRotation = value;
+    }
+
+    private void MoveCanvasWithHand()
     {
         if (isIndexPinching && !isIndexGrabbing)
         {
@@ -281,6 +307,28 @@ public class handCanvasFollower : MonoBehaviour
             {
                 isIndexGrabbing = false;
             }
+        }
+    }
+
+    private void DetectThumbGesture()
+    {
+        bool thumbPinched = leftHand.GetFingerIsPinching(OVRHand.HandFinger.Thumb) && !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index);
+        if (thumbPinched)
+        {
+            ChangeBackgroundColor(Color.yellow);
+        }
+    }
+
+    private void DetectPalmGesture()
+    {
+        bool palmOpen = !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Thumb) && !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Index) &&
+                         !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Middle) && !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Ring) &&
+                         !leftHand.GetFingerIsPinching(OVRHand.HandFinger.Pinky);
+
+        if (palmOpen)
+        {
+            PlayAudioClip(thumbsUpClip);
+            ChangeBackgroundColor(Color.blue);
         }
     }
 }
