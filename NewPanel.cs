@@ -52,6 +52,16 @@ public class NewPanel : MonoBehaviour
 
     void Update()
     {
+        HandleZoomInput();
+        HandleRotationInput();
+        HandleDragInput();
+        HandleFlipInput();
+        ZoomSelectedPanel();
+        RotateSelectedPanel();
+        DragSelectedPanel();
+        FlipSelectedPanel();
+
+        // Handle Raycast for texture placement
         if (OVRInput.Get(OVRInput.Button.PrimaryIndexTrigger) || 
             OVRInput.Get(OVRInput.Button.SecondaryIndexTrigger) ||
             hand.GetFingerIsPinching(OVRHand.HandFinger.Index))
@@ -227,16 +237,6 @@ public class NewPanel : MonoBehaviour
         }
     }
 
-    void Update()
-    {
-        HandleZoomInput();
-        HandleRotationInput();
-        ZoomSelectedPanel();
-        RotateSelectedPanel();
-    }
-
-    // Additional new functionality
-
     private bool isDragging = false;
     private Vector3 initialDragPosition;
     private Vector3 dragOffset;
@@ -313,15 +313,94 @@ public class NewPanel : MonoBehaviour
         }
     }
 
+    // Additional new functionality
+
+    private bool isResizing = false;
+    private Vector3 resizeStartScale;
+    private float resizeSpeed = 2.0f;
+    private Vector3 resizeTargetScale = new Vector3(1.5f, 1.5f, 1.5f);
+
+    void ResizeSelectedPanel()
+    {
+        if (isResizing)
+        {
+            float step = resizeSpeed * Time.deltaTime;
+            selectedPanelDisplay.transform.localScale = Vector3.Lerp(selectedPanelDisplay.transform.localScale, resizeTargetScale, step);
+        }
+    }
+
+    void StartResize()
+    {
+        isResizing = true;
+        resizeStartScale = selectedPanelDisplay.transform.localScale;
+    }
+
+    void StopResize()
+    {
+        isResizing = false;
+    }
+
+    void HandleResizeInput()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick))
+        {
+            StartResize();
+        }
+
+        if (OVRInput.GetUp(OVRInput.Button.PrimaryThumbstick))
+        {
+            StopResize();
+        }
+    }
+
+    private bool isScaling = false;
+    private float scaleSpeed = 0.1f;
+    private Vector3 targetScale = new Vector3(1.2f, 1.2f, 1.2f);
+
+    void ScaleSelectedPanel()
+    {
+        if (isScaling)
+        {
+            selectedPanelDisplay.transform.localScale += Vector3.one * scaleSpeed * Time.deltaTime;
+        }
+    }
+
+    void StartScale()
+    {
+        isScaling = true;
+    }
+
+    void StopScale()
+    {
+        isScaling = false;
+    }
+
+    void HandleScaleInput()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.SecondaryThumbstick))
+        {
+            StartScale();
+        }
+
+        if (OVRInput.GetUp(OVRInput.Button.SecondaryThumbstick))
+        {
+            StopScale();
+        }
+    }
+
     void Update()
     {
         HandleZoomInput();
         HandleRotationInput();
         HandleDragInput();
         HandleFlipInput();
+        HandleResizeInput();
+        HandleScaleInput();
         ZoomSelectedPanel();
         RotateSelectedPanel();
         DragSelectedPanel();
         FlipSelectedPanel();
+        ResizeSelectedPanel();
+        ScaleSelectedPanel();
     }
 }
