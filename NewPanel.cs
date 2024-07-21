@@ -234,4 +234,94 @@ public class NewPanel : MonoBehaviour
         ZoomSelectedPanel();
         RotateSelectedPanel();
     }
+
+    // Additional new functionality
+
+    private bool isDragging = false;
+    private Vector3 initialDragPosition;
+    private Vector3 dragOffset;
+
+    void StartDrag()
+    {
+        isDragging = true;
+        initialDragPosition = selectedPanelDisplay.transform.position;
+        dragOffset = selectedPanelDisplay.transform.position - hand.PointerPose.position;
+    }
+
+    void StopDrag()
+    {
+        isDragging = false;
+    }
+
+    void DragSelectedPanel()
+    {
+        if (isDragging)
+        {
+            selectedPanelDisplay.transform.position = hand.PointerPose.position + dragOffset;
+        }
+    }
+
+    void HandleDragInput()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.Three))
+        {
+            StartDrag();
+        }
+
+        if (OVRInput.GetUp(OVRInput.Button.Three))
+        {
+            StopDrag();
+        }
+    }
+
+    private bool isFlipping = false;
+    private Quaternion initialFlipRotation;
+    private Quaternion flipTargetRotation = Quaternion.Euler(0, 180, 0);
+    private float flipSpeed = 2.0f;
+
+    void FlipSelectedPanel()
+    {
+        if (isFlipping)
+        {
+            float step = flipSpeed * Time.deltaTime;
+            selectedPanelDisplay.transform.rotation = Quaternion.Lerp(selectedPanelDisplay.transform.rotation, flipTargetRotation, step);
+        }
+    }
+
+    void StartFlip()
+    {
+        isFlipping = true;
+        initialFlipRotation = selectedPanelDisplay.transform.rotation;
+    }
+
+    void StopFlip()
+    {
+        isFlipping = false;
+        selectedPanelDisplay.transform.rotation = initialFlipRotation;
+    }
+
+    void HandleFlipInput()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.Four))
+        {
+            StartFlip();
+        }
+
+        if (OVRInput.GetUp(OVRInput.Button.Four))
+        {
+            StopFlip();
+        }
+    }
+
+    void Update()
+    {
+        HandleZoomInput();
+        HandleRotationInput();
+        HandleDragInput();
+        HandleFlipInput();
+        ZoomSelectedPanel();
+        RotateSelectedPanel();
+        DragSelectedPanel();
+        FlipSelectedPanel();
+    }
 }
