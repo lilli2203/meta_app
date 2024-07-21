@@ -7,15 +7,16 @@ namespace LudicWorlds
 {
     public class DebugPanel : MonoBehaviour
     {
-        private static Canvas   _canvas;
-        private static Text     _debugText;
-        private static Text     _fpsText;
-        private static Text     _statusText; 
-        private static Text     _memoryText;
+        private static Canvas _canvas;
+        private static Text _debugText;
+        private static Text _fpsText;
+        private static Text _statusText;
+        private static Text _memoryText;
+        private static Text _cpuUsageText;
 
-        private float   _elapsedTime;
-        private uint    _fpsSamples;
-        private float   _sumFps;
+        private float _elapsedTime;
+        private uint _fpsSamples;
+        private float _sumFps;
 
         private const int MAX_LINES = 23;
 
@@ -27,8 +28,15 @@ namespace LudicWorlds
         private float _averageMemoryUsage;
         private uint _memorySamples;
 
-        private bool _showMemoryUsage = true; 
-        private bool _showFpsGraph = false; 
+        private float _cpuUsage;
+        private float _maxCpuUsage;
+        private float _averageCpuUsage;
+        private uint _cpuSamples;
+
+        private bool _showMemoryUsage = true;
+        private bool _showFpsGraph = false;
+        private bool _showCpuUsage = true;
+
         void Awake()
         {
             AcquireObjects();
@@ -56,7 +64,8 @@ namespace LudicWorlds
             _debugText = ui.Find("DebugText").GetComponent<Text>();
             _fpsText = ui.Find("FpsText").GetComponent<Text>();
             _statusText = ui.Find("StatusText").GetComponent<Text>();
-            _memoryText = ui.Find("MemoryText").GetComponent<Text>(); 
+            _memoryText = ui.Find("MemoryText").GetComponent<Text>();
+            _cpuUsageText = ui.Find("CpuUsageText").GetComponent<Text>();
         }
 
         void HandleLog(string message, string stackTrace, LogType type)
@@ -73,6 +82,7 @@ namespace LudicWorlds
             {
                 _fpsText.text = (Mathf.Round((_sumFps / _fpsSamples))).ToString();
                 UpdateMemoryUsage();
+                UpdateCpuUsage();
                 _elapsedTime = 0f;
                 _sumFps = 0f;
                 _fpsSamples = 0;
@@ -88,7 +98,7 @@ namespace LudicWorlds
 
         private void UpdateMemoryUsage()
         {
-            _memoryUsage = Profiler.GetTotalAllocatedMemoryLong() / (1024f * 1024f); 
+            _memoryUsage = Profiler.GetTotalAllocatedMemoryLong() / (1024f * 1024f);
             _maxMemoryUsage = Mathf.Max(_maxMemoryUsage, _memoryUsage);
             _averageMemoryUsage = ((_averageMemoryUsage * _memorySamples) + _memoryUsage) / (_memorySamples + 1);
             _memorySamples++;
@@ -96,6 +106,19 @@ namespace LudicWorlds
             if (_showMemoryUsage)
             {
                 _memoryText.text = $"Memory: {_memoryUsage:F2} MB\nMax Memory: {_maxMemoryUsage:F2} MB\nAvg Memory: {_averageMemoryUsage:F2} MB";
+            }
+        }
+
+        private void UpdateCpuUsage()
+        {
+            _cpuUsage = Profiler.GetTotalReservedMemoryLong() / (1024f * 1024f);
+            _maxCpuUsage = Mathf.Max(_maxCpuUsage, _cpuUsage);
+            _averageCpuUsage = ((_averageCpuUsage * _cpuSamples) + _cpuUsage) / (_cpuSamples + 1);
+            _cpuSamples++;
+
+            if (_showCpuUsage)
+            {
+                _cpuUsageText.text = $"CPU: {_cpuUsage:F2} MB\nMax CPU: {_maxCpuUsage:F2} MB\nAvg CPU: {_averageCpuUsage:F2} MB";
             }
         }
 
@@ -149,6 +172,15 @@ namespace LudicWorlds
             if (!_showMemoryUsage)
             {
                 _memoryText.text = "";
+            }
+        }
+
+        public void ToggleCpuUsageDisplay()
+        {
+            _showCpuUsage = !_showCpuUsage;
+            if (!_showCpuUsage)
+            {
+                _cpuUsageText.text = "";
             }
         }
 
@@ -229,6 +261,7 @@ namespace LudicWorlds
             string timestamp = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             _statusText.text = $"[{timestamp}] {message}";
         }
+
         public static void LogMemoryWarning(float thresholdMB)
         {
             if (_memoryUsage > thresholdMB)
@@ -236,6 +269,7 @@ namespace LudicWorlds
                 Debug.LogWarning($"Memory usage exceeded threshold: {_memoryUsage:F2} MB");
             }
         }
+
         public static void LogFpsError(float thresholdFps)
         {
             float fps = 1.0f / Time.deltaTime;
@@ -249,7 +283,7 @@ namespace LudicWorlds
         {
             float frameTime = Time.deltaTime * 1000f;
             float fps = 1.0f / Time.deltaTime;
-            string report = $"Performance Report:\nFrame Time: {frameTime:F2} ms\nFPS: {fps:F2}\nMemory: {_memoryUsage:F2} MB";
+            string report = $"Performance Report:\nFrame Time: {frameTime:F2} ms\nFPS: {fps:F2}\nMemory: {_memoryUsage:F2} MB\nCPU: {_cpuUsage:F2} MB";
             Debug.Log(report);
         }
 
@@ -261,15 +295,33 @@ namespace LudicWorlds
             _maxMemoryUsage = 0;
             _averageMemoryUsage = 0;
             _memorySamples = 0;
+            _cpuUsage = 0;
+            _maxCpuUsage = 0;
+            _averageCpuUsage = 0;
+            _cpuSamples = 0;
             Debug.Log("Performance metrics reset.");
         }
 
         public static void SavePerformanceMetrics(string fileName)
         {
             string path = $"{Application.persistentDataPath}/{fileName}.txt";
-            string metrics = $"Frame Time: {Time.deltaTime * 1000f:F2} ms\nFPS: {1.0f / Time.deltaTime:F2}\nMemory: {_memoryUsage:F2} MB";
+            string metrics = $"Frame Time: {Time.deltaTime * 1000f:F2} ms\nFPS: {1.0f / Time.deltaTime:F2}\nMemory: {_memoryUsage:F2} MB\nCPU: {_cpuUsage:F2} MB";
             System.IO.File.WriteAllText(path, metrics);
             Debug.Log($"Performance metrics saved to {path}");
+        }
+
+        public static void LogAndDisplayCustomMessage(string message, LogType type)
+        {
+            LogCustomMessage(message, type);
+            SetStatus(message);
+        }
+
+        public static void LogAndSaveCustomMessage(string message, LogType type, string fileName)
+        {
+            LogCustomMessage(message, type);
+            string path = $"{Application.persistentDataPath}/{fileName}.txt";
+            System.IO.File.WriteAllText(path, message);
+            Debug.Log($"Message logged and saved to {path}");
         }
     }
 }
