@@ -19,12 +19,32 @@ public class PanelsScript2 : MonoBehaviour
     int height = 13874;
 
     private GameObject pointCircle;
-    private bool isPanelSelected = false; // Track if a panel is selected
+    private bool isPanelSelected = false; 
 
     void Start()
     {
+        LoadTextures();
+        CreateButtons();
+        SetInitialTexture();
+        CreatePointCircle();
+    }
+
+    void Update()
+    {
+        if (isPanelSelected)
+        {
+            CheckForWallPointing();
+        }
+    }
+
+    private void LoadTextures()
+    {
         textures = Resources.LoadAll<Texture2D>("panels");
         borderPanels = new GameObject[textures.Length];
+    }
+
+    private void CreateButtons()
+    {
         for (int i = 0; i < textures.Length; i++)
         {
             GameObject buttonGameObject = Instantiate(buttonPrefab);
@@ -39,17 +59,19 @@ public class PanelsScript2 : MonoBehaviour
             Sprite sprite = Sprite.Create(textures[i], new Rect(0, 0, textures[i].width, textures[i].height), Vector2.one * 0.5f);
             imageComponent.sprite = sprite;
         }
-
-        currentTexture = textures[0];
-        CreatePointCircle();
     }
 
-    void Update()
+    private void SetInitialTexture()
     {
-        if (isPanelSelected)
-        {
-            CheckForWallPointing();
-        }
+        currentTexture = textures[0];
+    }
+
+    private void CreatePointCircle()
+    {
+        pointCircle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        pointCircle.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+        pointCircle.GetComponent<Renderer>().material.color = Color.red;
+        pointCircle.SetActive(false);
     }
 
     private void CheckForWallPointing()
@@ -68,12 +90,10 @@ public class PanelsScript2 : MonoBehaviour
         }
 
         Vector3 rayDirection = controllerRotation * Vector3.forward;
-        RaycastHit hit;
-        if (Physics.Raycast(controllerPosition, rayDirection, out hit))
+        if (Physics.Raycast(controllerPosition, rayDirection, out RaycastHit hit))
         {
             GameObject hitPlane = hit.collider.gameObject;
-            if (hitPlane.transform.parent == null) return;
-            if (hitPlane.transform.parent.name == "WALL_FACE")
+            if (hitPlane.transform.parent != null && hitPlane.transform.parent.name == "WALL_FACE")
             {
                 DisplayPointCircle(hit.point);
                 if (OVRInput.Get(OVRInput.Button.PrimaryHandTrigger) || OVRInput.Get(OVRInput.Button.SecondaryHandTrigger))
@@ -82,14 +102,6 @@ public class PanelsScript2 : MonoBehaviour
                 }
             }
         }
-    }
-
-    private void CreatePointCircle()
-    {
-        pointCircle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        pointCircle.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-        pointCircle.GetComponent<Renderer>().material.color = Color.red;
-        pointCircle.SetActive(false);
     }
 
     private void DisplayPointCircle(Vector3 position)
@@ -123,13 +135,12 @@ public class PanelsScript2 : MonoBehaviour
         isPanelSelected = false;
     }
 
-    void OnPanelClick(int t)
+    private void OnPanelClick(int t)
     {
         currentTexture = textures[t];
         for (int i = 0; i < textures.Length; i++)
         {
-            if (i == t) borderPanels[i].SetActive(true);
-            else borderPanels[i].SetActive(false);
+            borderPanels[i].SetActive(i == t);
         }
         isPanelSelected = true;
     }
