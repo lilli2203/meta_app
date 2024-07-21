@@ -19,10 +19,12 @@ public class PanelsScript2 : MonoBehaviour
     int height = 13874;
 
     private GameObject pointCircle;
-    private bool isPanelSelected = false; 
+    private bool isPanelSelected = false;
     private Dictionary<string, Texture2D> savedPanels = new Dictionary<string, Texture2D>();
+    private Stack<string> undoStack = new Stack<string>();
+    private Stack<string> redoStack = new Stack<string>();
 
-    public TMP_Text statusText; 
+    public TMP_Text statusText;
 
     void Start()
     {
@@ -40,6 +42,7 @@ public class PanelsScript2 : MonoBehaviour
         {
             CheckForWallPointing();
         }
+        HandleUndoRedo();
     }
 
     private void LoadTextures()
@@ -143,6 +146,10 @@ public class PanelsScript2 : MonoBehaviour
         MeshRenderer planeRenderer = hitPlane.GetComponentInParent<MeshRenderer>();
         planeRenderer.material = material;
         string panelName = hitPlane.transform.parent.name;
+        if (savedPanels.ContainsKey(panelName))
+        {
+            undoStack.Push(panelName);
+        }
         savedPanels[panelName] = currentTexture;
         SavePanelStates();
 
@@ -216,6 +223,75 @@ public class PanelsScript2 : MonoBehaviour
         if (statusText != null)
         {
             statusText.text = message;
+        }
+    }
+
+    // New functionality for undo/redo operations
+    private void HandleUndoRedo()
+    {
+        if (OVRInput.GetDown(OVRInput.Button.One))
+        {
+            UndoLastAction();
+        }
+
+        if (OVRInput.GetDown(OVRInput.Button.Two))
+        {
+            RedoLastAction();
+        }
+    }
+
+    private void UndoLastAction()
+    {
+        if (undoStack.Count > 0)
+        {
+            string panelName = undoStack.Pop();
+            redoStack.Push(panelName);
+
+            if (PlayerPrefs.HasKey(panelName))
+            {
+                PlayerPrefs.DeleteKey(panelName);
+            }
+
+            foreach (GameObject hitPlane in GameObject.FindGameObjectsWithTag("WALL_FACE"))
+            {
+                if (hitPlane.transform.parent.name == panelName)
+                {
+                    hitPlane.GetComponentInParent<MeshRenderer>().material = null;
+                    savedPanels.Remove(panelName);
+                    UpdateStatusText("Undid texture application for " + panelName);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            UpdateStatusText("No actions to undo.");
+        }
+    }
+
+    private void RedoLastAction()
+    {
+        if (redoStack.Count > 0)
+        {
+            string panelName = redoStack.Pop();
+            if (savedPanels.ContainsKey(panelName))
+            {
+                Texture2D texture = savedPanels[panelName];
+                foreach (GameObject hitPlane in GameObject.FindGameObjectsWithTag("WALL_FACE"))
+                {
+                    if (hitPlane.transform.parent.name == panelName)
+                    {
+                        ApplySavedTexture(hitPlane, texture);
+                        undoStack.Push(panelName);
+                        UpdateStatusText("Redid texture application for " + panelName);
+                        break;
+                    }
+                }
+            }
+        }
+        else
+        {
+            UpdateStatusText("No actions to redo.");
         }
     }
 }
